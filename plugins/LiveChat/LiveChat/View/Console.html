@@ -1,0 +1,44 @@
+#{include file=$manage_view_path|cat:"/Header.html"}
+<meta name="csrf-token" content="#{$csrf_token}">
+<link rel="stylesheet" href="/app/Plugin/LiveChat/View/Console.css?v=#{$asset_version}">
+<div class="layui-fluid livechat-console">
+    <div class="lc-console-shell">
+        <aside class="lc-session-pane">
+            <div class="lc-pane-head">
+                <div>
+                    <div class="lc-eyebrow">在线客服</div>
+                    <h1>会话列表</h1>
+                </div>
+                <button class="lc-refresh" type="button">刷新</button>
+            </div>
+            <div class="lc-filter">
+                <button class="active" data-status="">全部</button>
+                <button data-status="0">进行中</button>
+                <button data-status="1">已结束</button>
+            </div>
+            <div class="lc-session-list"></div>
+        </aside>
+        <main class="lc-chat-pane">
+            <div class="lc-chat-empty">
+                <h2>选择一个会话</h2>
+                <p>从左侧打开会话后即可查看和回复。</p>
+            </div>
+            <div class="lc-chat-active hidden">
+                <header class="lc-chat-head">
+                    <div>
+                        <div class="lc-session-title">-</div>
+                        <div class="lc-session-meta">-</div>
+                    </div>
+                    <button class="lc-end-session" type="button">结束会话</button>
+                </header>
+                <section class="lc-messages"></section>
+                <footer class="lc-reply">
+                    <textarea placeholder="输入回复内容"></textarea>
+                    <button type="button">发送</button>
+                </footer>
+            </div>
+        </main>
+    </div>
+</div>
+<script src="/app/Plugin/LiveChat/View/Console.js?v=#{$asset_version}"></script>
+#{include file=$manage_view_path|cat:"/Footer.html"}
