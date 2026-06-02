@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-05-28",
+  "updated_at": "2026-06-03",
   "notice": "本仓库为 Acg-Faka-Local 的 GitHub 插件市场，前端会读取本 JSON 渲染插件列表，安装时根据 path 字段从仓库子目录拉取文件。type: 0=通用插件 1=支付插件 2=主题模板。",
   "items": [
     {
@@ -241,6 +241,21 @@
       "tags": [],
       "min_app_version": "3.4.9",
       "homepage": "https://github.com/NoDoorAction/Acg-Faka-Plugins/tree/main/plugins/LeavePrompt",
+      "download_url": null
+    },
+    {
+      "key": "LiveChat",
+      "type": 0,
+      "name": "LiveChat 页面在线客服",
+      "version": "1.0.0",
+      "author": "ZhongY-God",
+      "description": "为商城前台增加右下角页面在线客服窗口，后台客服可实时查看、回复和结束会话。",
+      "web_site": "",
+      "icon": "",
+      "path": "plugins/LiveChat",
+      "tags": [],
+      "min_app_version": "3.5.1",
+      "homepage": "https://github.com/NoDoorAction/Acg-Faka-Plugins/tree/main/plugins/LiveChat",
       "download_url": null
     },
     {
