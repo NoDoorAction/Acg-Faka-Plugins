@@ -1,7 +1,14 @@
-#{include file=$manage_view_path|cat:"/Header.html"}
-<meta name="csrf-token" content="#{$csrf_token}">
-<link rel="stylesheet" href="/app/Plugin/LiveChat/View/Console.css?v=#{$asset_version}">
-<div class="layui-fluid livechat-console">
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="#{$csrf_token}">
+    <title>#{$title}</title>
+    <link rel="stylesheet" href="/app/Plugin/LiveChat/View/Console.css?v=#{$asset_version}">
+</head>
+<body class="livechat-console-page">
+<div class="livechat-console">
     <div class="lc-console-shell">
         <aside class="lc-session-pane">
             <div class="lc-pane-head">
@@ -41,4 +48,5 @@
     </div>
 </div>
 <script src="/app/Plugin/LiveChat/View/Console.js?v=#{$asset_version}"></script>
-#{include file=$manage_view_path|cat:"/Footer.html"}
+</body>
+</html>

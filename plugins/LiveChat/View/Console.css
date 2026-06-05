@@ -1,12 +1,20 @@
+.livechat-console-page {
+    margin: 0;
+    background: #f5f7fa;
+    font-family: Arial, "Microsoft YaHei", sans-serif;
+}
+
 .livechat-console {
-    min-height: calc(100vh - 120px);
+    min-height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
     color: #172033;
 }
 
 .lc-console-shell {
     display: grid;
     grid-template-columns: 320px minmax(0, 1fr);
-    height: calc(100vh - 160px);
+    height: calc(100vh - 40px);
     min-height: 620px;
     background: #fff;
     border: 1px solid #dfe5ee;
