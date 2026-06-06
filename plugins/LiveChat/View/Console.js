@@ -4,6 +4,9 @@
         sessions: [],
         activeId: 0,
         pollTimer: null,
+        activeMessageSignature: "",
+        loadingSessions: false,
+        messageRequestId: 0,
         baseTitle: document.title || "在线客服"
     };
 
@@ -59,6 +62,19 @@
 
     const activeSession = () => state.sessions.find(item => Number(item.id) === Number(state.activeId));
 
+    const messageSignature = (session, messages) => JSON.stringify([
+        Number(session.id || 0),
+        Number(session.status || 0),
+        String(session.visitor_name || ""),
+        String(session.status_text || ""),
+        String(session.client_ip || ""),
+        (messages || []).map(message => [
+            Number(message.id || 0),
+            String(message.sender || ""),
+            String(message.content || "")
+        ])
+    ]);
+
     const unreadTotal = () => state.sessions.reduce((total, item) => total + Math.max(0, Number(item.unread) || 0), 0);
 
     const updateUnreadTitle = () => {
@@ -67,6 +83,7 @@
     };
 
     const renderSessions = () => {
+        const previousScrollTop = listEl.scrollTop;
         updateUnreadTitle();
         if (!state.sessions.length) {
             listEl.innerHTML = '<div class="lc-session-item"><div class="lc-session-preview">暂无会话</div></div>';
@@ -95,72 +112,110 @@
                 </div>
             `;
         }).join("");
+        listEl.scrollTop = previousScrollTop;
     };
 
-    const renderMessages = (session, messages) => {
+    const renderMessages = (session, messages, options = {}) => {
+        const closed = Number(session.status) === 1;
+        const messagesList = messages || [];
+        const signature = messageSignature(session, messagesList);
+        const previousScrollTop = messagesEl.scrollTop;
+        const distanceFromBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
+        const shouldStickToBottom = options.forceScroll || distanceFromBottom < 40;
         emptyEl.classList.add("hidden");
         activeEl.classList.remove("hidden");
         document.querySelector(".lc-session-title").textContent = session.visitor_name || `访客-${session.id}`;
         document.querySelector(".lc-session-meta").textContent = `#${session.id} · ${session.status_text} · ${session.client_ip || "-"}`;
-        replyText.disabled = Number(session.status) === 1;
-        replyButton.disabled = Number(session.status) === 1;
-        endButton.disabled = Number(session.status) === 1;
-        messagesEl.innerHTML = (messages || []).map(message => {
+        replyText.disabled = closed;
+        replyButton.disabled = closed;
+        endButton.disabled = closed;
+        endButton.classList.toggle("hidden", closed);
+        replyText.placeholder = closed ? "会话已结束，不能回复" : "输入回复内容";
+        replyButton.textContent = closed ? "已结束" : "发送";
+
+        if (state.activeMessageSignature === signature) {
+            if (shouldStickToBottom) {
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
+            return;
+        }
+
+        messagesEl.innerHTML = messagesList.map(message => {
             const sender = safeSender(String(message.sender || ""));
             return `<div class="lc-message ${sender}">${esc(message.content)}</div>`;
         }).join("");
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+        state.activeMessageSignature = signature;
+        messagesEl.scrollTop = shouldStickToBottom ? messagesEl.scrollHeight : previousScrollTop;
     };
 
-    const loadSessions = () => {
+    const loadSessions = (options = {}) => {
+        const background = Boolean(options.background);
+        if (state.loadingSessions) return Promise.resolve();
+        state.loadingSessions = true;
+
         return post(api.sessions, {status: state.status}).then(res => {
             if (res.code !== 200) throw new Error(res.msg || "加载会话失败");
             state.sessions = res.data.list || [];
             renderSessions();
             if (state.activeId && activeSession()) {
-                return loadMessages(state.activeId, false);
+                return loadMessages(state.activeId, false, {background});
             }
         }).catch(error => {
-            listEl.innerHTML = `<div class="lc-session-item"><div class="lc-session-preview">${esc(error.message)}</div></div>`;
+            if (!background || !state.sessions.length) {
+                listEl.innerHTML = `<div class="lc-session-item"><div class="lc-session-preview">${esc(error.message)}</div></div>`;
+            }
+        }).finally(() => {
+            state.loadingSessions = false;
         });
     };
 
-    const loadMessages = (id, updateActive = true) => {
+    const loadMessages = (id, updateActive = true, options = {}) => {
+        const background = Boolean(options.background);
+        const requestId = ++state.messageRequestId;
+
         return post(api.messages, {session_id: id}).then(res => {
+            if (requestId !== state.messageRequestId) return;
             if (res.code !== 200) throw new Error(res.msg || "加载消息失败");
             if (updateActive) state.activeId = Number(id);
             const session = activeSession();
             if (session) session.unread = 0;
-            renderMessages(res.data.session, res.data.messages);
+            renderMessages(res.data.session, res.data.messages, {forceScroll: updateActive});
             renderSessions();
         }).catch(error => {
-            messagesEl.innerHTML = `<div class="lc-message system">${esc(error.message)}</div>`;
+            if (requestId !== state.messageRequestId) return;
+            if (!background || !state.activeMessageSignature) {
+                messagesEl.innerHTML = `<div class="lc-message system">${esc(error.message)}</div>`;
+                state.activeMessageSignature = "";
+            }
         });
     };
 
     const reply = () => {
         const content = replyText.value.trim();
         if (!content || !state.activeId) return;
+        state.messageRequestId += 1;
         replyButton.disabled = true;
         post(api.reply, {session_id: state.activeId, content}).then(res => {
             if (res.code !== 200) throw new Error(res.msg || "回复失败");
             replyText.value = "";
-            renderMessages(res.data.session, res.data.messages);
+            renderMessages(res.data.session, res.data.messages, {forceScroll: true});
             loadSessions();
         }).catch(error => {
             alert(error.message || "回复失败");
         }).finally(() => {
             const session = activeSession();
             replyButton.disabled = session ? Number(session.status) === 1 : false;
+            if (!replyText.disabled) replyText.focus();
         });
     };
 
     const endSession = () => {
         if (!state.activeId) return;
         if (!window.confirm("确定结束该会话吗？历史消息会保留。")) return;
+        state.messageRequestId += 1;
         post(api.end, {session_id: state.activeId}).then(res => {
             if (res.code !== 200) throw new Error(res.msg || "结束失败");
-            renderMessages(res.data.session, res.data.messages);
+            renderMessages(res.data.session, res.data.messages, {forceScroll: true});
             loadSessions();
         }).catch(error => {
             alert(error.message || "结束失败");
@@ -180,6 +235,7 @@
             button.classList.add("active");
             state.status = button.dataset.status;
             state.activeId = 0;
+            state.activeMessageSignature = "";
             activeEl.classList.add("hidden");
             emptyEl.classList.remove("hidden");
             loadSessions();
@@ -188,12 +244,12 @@
     replyButton.addEventListener("click", reply);
     endButton.addEventListener("click", endSession);
     replyText.addEventListener("keydown", event => {
-        if (event.key === "Enter" && !event.shiftKey) {
+        if (event.key === "Enter" && !event.shiftKey && !event.isComposing && event.keyCode !== 229) {
             event.preventDefault();
             reply();
         }
     });
 
     loadSessions();
-    state.pollTimer = window.setInterval(loadSessions, 5000);
+    state.pollTimer = window.setInterval(() => loadSessions({background: true}), 5000);
 })();
