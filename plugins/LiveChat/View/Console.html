@@ -3,12 +3,13 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="csrf-token" content="#{$csrf_token}">
+    <meta name="livechat-csrf-token" content="#{$csrf_token}">
     <title>#{$title}</title>
     <link rel="stylesheet" href="/app/Plugin/LiveChat/View/Console.css?v=#{$asset_version}">
 </head>
 <body class="livechat-console-page">
 <div class="livechat-console">
+    <div class="lc-console-notice hidden" role="status" aria-live="polite"></div>
     <div class="lc-console-shell">
         <aside class="lc-session-pane">
             <div class="lc-pane-head">
@@ -19,11 +20,11 @@
                 <button class="lc-refresh" type="button">刷新</button>
             </div>
             <div class="lc-filter">
-                <button class="active" data-status="">全部</button>
-                <button data-status="0">进行中</button>
-                <button data-status="1">已结束</button>
+                <button class="active" type="button" data-status="">全部</button>
+                <button type="button" data-status="0">进行中</button>
+                <button type="button" data-status="1">已结束</button>
             </div>
-            <div class="lc-session-list"></div>
+            <div class="lc-session-list" aria-label="客服会话"></div>
         </aside>
         <main class="lc-chat-pane">
             <div class="lc-chat-empty">
@@ -38,9 +39,9 @@
                     </div>
                     <button class="lc-end-session" type="button">结束会话</button>
                 </header>
-                <section class="lc-messages"></section>
+                <section class="lc-messages" aria-label="会话消息"></section>
                 <footer class="lc-reply">
-                    <textarea placeholder="输入回复内容"></textarea>
+                    <textarea aria-label="回复内容" placeholder="输入回复内容"></textarea>
                     <button type="button">发送</button>
                 </footer>
             </div>

@@ -5,11 +5,24 @@
     }
     root.dataset.ready = "1";
 
+    const readOpenState = () => {
+        try {
+            return localStorage.getItem("livechat_window_closed") === "0";
+        } catch (error) {
+            return false;
+        }
+    };
+
     const state = {
         lastId: 0,
-        open: localStorage.getItem("livechat_window_closed") === "0",
+        open: readOpenState(),
         ended: false,
         bootstrapped: false,
+        bootstrapping: false,
+        polling: false,
+        sending: false,
+        ending: false,
+        requestId: 0,
         pollTimer: null,
         pollInterval: Math.max(2, Number(root.dataset.pollInterval || 4)) * 1000
     };
@@ -50,7 +63,7 @@
         .map(([value, label]) => `<option value="${esc(value)}">${esc(label)}</option>`)
         .join("");
 
-    const getCsrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || "";
+    const getCsrfToken = () => document.querySelector('meta[name="livechat-csrf-token"]')?.content || "";
 
     const parseJsonResponse = async response => {
         const contentType = response.headers.get("content-type") || "";
@@ -90,7 +103,7 @@
                     <span class="lc-status-dot" aria-hidden="true"></span>
                     <div class="lc-brand-text">
                         <div class="lc-title">${esc(root.dataset.title || "在线客服")}</div>
-                        <div class="lc-subtitle">提问后等待客服回复即可</div>
+                        <div class="lc-subtitle">${esc(root.dataset.offlineText || "提问后等待客服回复即可")}</div>
                     </div>
                 </div>
                 <div class="lc-actions">
@@ -190,7 +203,11 @@
         state.open = open;
         widget.classList.toggle("lc-hidden", !open);
         launcher.classList.toggle("lc-launcher-open", open);
-        localStorage.setItem("livechat_window_closed", open ? "0" : "1");
+        try {
+            localStorage.setItem("livechat_window_closed", open ? "0" : "1");
+        } catch (error) {
+            // Storage can be unavailable in privacy-restricted browsing contexts.
+        }
     };
 
     const setView = view => {
@@ -218,8 +235,13 @@
     };
 
     const renderIntro = () => {
+        state.requestId += 1;
         state.ended = false;
         state.bootstrapped = false;
+        state.bootstrapping = false;
+        state.polling = false;
+        state.sending = false;
+        state.ending = false;
         state.lastId = 0;
         body.innerHTML = "";
         setView("intro");
@@ -234,8 +256,13 @@
     };
 
     const renderEnded = () => {
+        state.requestId += 1;
         state.ended = true;
         state.bootstrapped = false;
+        state.bootstrapping = false;
+        state.polling = false;
+        state.sending = false;
+        state.ending = false;
         state.lastId = 0;
         window.clearInterval(state.pollTimer);
         body.innerHTML = "";
@@ -253,8 +280,10 @@
         return true;
     };
 
-    const appendMessages = messages => {
+    const appendMessages = (messages, options = {}) => {
         if (state.ended) return;
+        const distanceFromBottom = body.scrollHeight - body.scrollTop - body.clientHeight;
+        const shouldStickToBottom = Boolean(options.forceScroll) || distanceFromBottom < 40;
         (messages || []).forEach(message => {
             const messageId = Number(message.id || 0);
             if (messageId > 0 && messageId <= state.lastId) return;
@@ -266,17 +295,30 @@
             node.textContent = String(message.content || "");
             body.appendChild(node);
         });
-        body.scrollTop = body.scrollHeight;
+        if (shouldStickToBottom) {
+            body.scrollTop = body.scrollHeight;
+        }
     };
 
-    const bootstrap = intake => post(api.bootstrap, intake).then(res => {
-        if (res.code !== 200) throw new Error(res.msg || "初始化失败");
-        state.bootstrapped = true;
-        renderChat();
-        if (!applySession(res.data.session)) return;
-        appendMessages(res.data.messages);
-        startPolling();
-    });
+    const bootstrap = intake => {
+        if (state.bootstrapping) return Promise.resolve();
+        state.bootstrapping = true;
+        const requestId = ++state.requestId;
+
+        return post(api.bootstrap, intake).then(res => {
+            if (requestId !== state.requestId) return;
+            if (res.code !== 200) throw new Error(res.msg || "初始化失败");
+            state.bootstrapped = true;
+            renderChat();
+            if (!applySession(res.data.session)) return;
+            appendMessages(res.data.messages, {forceScroll: true});
+            startPolling();
+        }).finally(() => {
+            if (requestId === state.requestId) {
+                state.bootstrapping = false;
+            }
+        });
+    };
 
     const restoreSession = () => {
         if (state.bootstrapped) return;
@@ -286,39 +328,66 @@
     };
 
     const poll = () => {
-        if (!state.bootstrapped || state.ended) return;
+        if (!state.bootstrapped || state.ended || state.ending || state.polling) return;
+        state.polling = true;
+        const requestId = state.requestId;
         post(api.poll, {after_id: state.lastId}).then(res => {
+            if (requestId !== state.requestId || !state.bootstrapped || state.ended) return;
             if (res.code === 200 && applySession(res.data.session)) {
                 appendMessages(res.data.messages);
             }
-        }).catch(() => {});
+        }).catch(() => {}).finally(() => {
+            if (requestId === state.requestId) {
+                state.polling = false;
+            }
+        });
     };
 
     const send = () => {
         const content = chatTextarea.value.trim();
-        if (!content || state.ended || !state.bootstrapped) return;
+        if (!content || state.ended || state.ending || !state.bootstrapped || state.sending) return;
+        state.sending = true;
+        const requestId = state.requestId;
         sendButton.disabled = true;
         post(api.send, {content}).then(res => {
+            if (requestId !== state.requestId || state.ended || state.ending) return;
             if (res.code !== 200) throw new Error(res.msg || "发送失败");
             chatTextarea.value = "";
             if (applySession(res.data.session)) {
-                appendMessages(res.data.messages);
+                appendMessages(res.data.messages, {forceScroll: true});
             }
         }).catch(error => {
-            appendMessages([{sender: "system", content: error.message || "发送失败"}]);
+            if (requestId !== state.requestId || state.ended || state.ending) return;
+            appendMessages([{sender: "system", content: error.message || "发送失败"}], {forceScroll: true});
         }).finally(() => {
-            sendButton.disabled = state.ended;
+            if (requestId === state.requestId) {
+                state.sending = false;
+                sendButton.disabled = state.ended || state.ending;
+                if (!chatTextarea.disabled && !state.ending) chatTextarea.focus();
+            }
         });
     };
 
     const endSession = () => {
-        if (state.ended || !state.bootstrapped) return;
+        if (state.ended || state.ending || !state.bootstrapped) return;
         if (!window.confirm("确定结束当前会话吗？结束后将不能继续发送消息。")) return;
+        state.ending = true;
+        const requestId = ++state.requestId;
+        sendButton.disabled = true;
+        endButton.disabled = true;
         post(api.end, {}).then(res => {
+            if (requestId !== state.requestId) return;
             if (res.code !== 200) throw new Error(res.msg || "结束失败");
             renderEnded();
         }).catch(error => {
-            appendMessages([{sender: "system", content: error.message || "结束失败"}]);
+            if (requestId !== state.requestId) return;
+            appendMessages([{sender: "system", content: error.message || "结束失败"}], {forceScroll: true});
+        }).finally(() => {
+            if (requestId === state.requestId) {
+                state.ending = false;
+                sendButton.disabled = state.ended;
+                endButton.disabled = state.ended;
+            }
         });
     };
 
@@ -357,7 +426,7 @@
     endButton.addEventListener("click", endSession);
     sendButton.addEventListener("click", send);
     chatTextarea.addEventListener("keydown", event => {
-        if (event.key === "Enter" && !event.shiftKey) {
+        if (event.key === "Enter" && !event.shiftKey && !event.isComposing && event.keyCode !== 229) {
             event.preventDefault();
             send();
         }

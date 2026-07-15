@@ -19,6 +19,7 @@ class Main extends UserPlugin
     {
         $cfg = PluginUtil::getConfig(LiveChatService::PLUGIN_KEY);
         $title = htmlspecialchars((string)($cfg['widget_title'] ?? '在线客服'), ENT_QUOTES, 'UTF-8');
+        $offlineText = htmlspecialchars((string)($cfg['offline_text'] ?? '提问后等待客服回复即可'), ENT_QUOTES, 'UTF-8');
         $interval = max(2, (int)($cfg['poll_interval_seconds'] ?? 4));
         $categories = htmlspecialchars(json_encode(LiveChatService::intakeCategories(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ENT_QUOTES, 'UTF-8');
         $csrfToken = htmlspecialchars(Csrf::getToken(), ENT_QUOTES, 'UTF-8');
@@ -26,9 +27,9 @@ class Main extends UserPlugin
         $version = preg_replace('/[^A-Za-z0-9._-]/', '', (string)($plugin[PluginConst::VERSION] ?? '1.0.0')) ?: '1.0.0';
 
         return <<<HTML
-<meta name="csrf-token" content="{$csrfToken}">
+<meta name="livechat-csrf-token" content="{$csrfToken}">
 <link rel="stylesheet" href="/app/Plugin/LiveChat/View/Widget.css?v={$version}">
-<div id="livechat-root" data-title="{$title}" data-poll-interval="{$interval}" data-intake-categories="{$categories}"></div>
+<div id="livechat-root" data-title="{$title}" data-offline-text="{$offlineText}" data-poll-interval="{$interval}" data-intake-categories="{$categories}"></div>
 <script src="/app/Plugin/LiveChat/View/Widget.js?v={$version}"></script>
 HTML;
     }

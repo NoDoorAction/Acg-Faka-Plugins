@@ -268,6 +268,26 @@ class LiveChatService
         return (int)$id;
     }
 
+    public static function addMessageToOpenSession(int $sessionId, string $sender, string $content): int
+    {
+        self::assertTablesInstalled();
+
+        return DB::transaction(function () use ($sessionId, $sender, $content) {
+            $session = DB::table('plugin_livechat_session')
+                ->where('id', $sessionId)
+                ->lockForUpdate()
+                ->first();
+            if (!$session) {
+                throw new JSONException('会话不存在');
+            }
+            if ((int)$session->status === self::STATUS_CLOSED) {
+                throw new JSONException('会话已结束，不能继续回复');
+            }
+
+            return self::addMessage($sessionId, $sender, $content);
+        });
+    }
+
     public static function assertSessionCreateAllowed(array $config = []): void
     {
         self::assertTablesInstalled();
@@ -315,9 +335,7 @@ class LiveChatService
         self::assertTablesInstalled();
 
         $query = DB::table('plugin_livechat_message')
-            ->where('session_id', $sessionId)
-            ->orderBy('id', 'asc')
-            ->limit(200);
+            ->where('session_id', $sessionId);
 
         if ($afterId > 0) {
             $query->where('id', '>', $afterId);
@@ -326,9 +344,18 @@ class LiveChatService
             $query->where('sender', '<>', 'system');
         }
 
+        $rows = $query
+            ->orderBy('id', $afterId > 0 ? 'asc' : 'desc')
+            ->limit(200)
+            ->get()
+            ->all();
+        if ($afterId === 0) {
+            $rows = array_reverse($rows);
+        }
+
         return array_map(
             $includeSessionId ? [self::class, 'messageToArray'] : [self::class, 'clientMessageToArray'],
-            $query->get()->all()
+            $rows
         );
     }
 
@@ -336,13 +363,19 @@ class LiveChatService
     {
         self::assertTablesInstalled();
 
-        $row = DB::table('plugin_livechat_session')->where('id', $sessionId)->first();
-        if (!$row) {
-            throw new JSONException('会话不存在');
-        }
-
         $now = Date::current();
         DB::transaction(function () use ($sessionId, $closedBy, $now) {
+            $row = DB::table('plugin_livechat_session')
+                ->where('id', $sessionId)
+                ->lockForUpdate()
+                ->first();
+            if (!$row) {
+                throw new JSONException('会话不存在');
+            }
+            if ((int)$row->status === self::STATUS_CLOSED) {
+                return;
+            }
+
             DB::table('plugin_livechat_session')->where('id', $sessionId)->update([
                 'status' => self::STATUS_CLOSED,
                 'last_message' => null,
@@ -365,14 +398,26 @@ class LiveChatService
         }
 
         $rows = $query->get()->all();
-        return array_map(function ($row) {
-            $unread = DB::table('plugin_livechat_message')
-                ->where('session_id', (int)$row->id)
+        $sessionIds = array_map(static fn($row) => (int)$row->id, $rows);
+        $unreadBySession = [];
+        if ($sessionIds !== []) {
+            $unreadRows = DB::table('plugin_livechat_message')
+                ->selectRaw('session_id, COUNT(*) AS unread')
+                ->whereIn('session_id', $sessionIds)
                 ->where('sender', 'visitor')
                 ->where('is_read', 0)
-                ->count();
+                ->groupBy('session_id')
+                ->get()
+                ->all();
+            foreach ($unreadRows as $unreadRow) {
+                $unreadBySession[(int)$unreadRow->session_id] = (int)$unreadRow->unread;
+            }
+        }
 
-            return self::sessionToArray($row) + ['unread' => (int)$unread];
+        return array_map(function ($row) use ($unreadBySession) {
+            return self::sessionToArray($row) + [
+                'unread' => $unreadBySession[(int)$row->id] ?? 0,
+            ];
         }, $rows);
     }
 

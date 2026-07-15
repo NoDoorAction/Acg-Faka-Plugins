@@ -94,7 +94,11 @@ class Client extends UserPlugin
         }
 
         LiveChatService::assertVisitorMessageAllowed((int)$session->id, $cfg);
-        LiveChatService::addMessage((int)$session->id, 'visitor', (string)$this->request->post('content', Filter::NORMAL));
+        LiveChatService::addMessageToOpenSession(
+            (int)$session->id,
+            'visitor',
+            (string)$this->request->post('content', Filter::NORMAL)
+        );
         $session = DB::table('plugin_livechat_session')->where('id', (int)$session->id)->first();
 
         return $this->json(200, 'success', [
