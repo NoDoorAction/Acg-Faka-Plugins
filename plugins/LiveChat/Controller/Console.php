@@ -46,15 +46,11 @@ class Console extends ManagePlugin
     {
         $this->assertPost();
         $sessionId = $this->validateSessionId((int)$this->request->post('session_id', Filter::INTEGER));
-        $session = DB::table('plugin_livechat_session')->where('id', $sessionId)->first();
-        if (!$session) {
-            throw new JSONException('会话不存在');
-        }
-        if ((int)$session->status === LiveChatService::STATUS_CLOSED) {
-            throw new JSONException('会话已结束，不能继续回复');
-        }
-
-        LiveChatService::addMessage($sessionId, 'admin', (string)$this->request->post('content', Filter::NORMAL));
+        LiveChatService::addMessageToOpenSession(
+            $sessionId,
+            'admin',
+            (string)$this->request->post('content', Filter::NORMAL)
+        );
         $session = DB::table('plugin_livechat_session')->where('id', $sessionId)->first();
 
         return $this->json(200, '回复成功', [

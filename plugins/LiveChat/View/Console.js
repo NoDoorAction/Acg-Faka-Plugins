@@ -6,7 +6,9 @@
         pollTimer: null,
         activeMessageSignature: "",
         loadingSessions: false,
+        pendingSessionReload: false,
         messageRequestId: 0,
+        noticeTimer: null,
         baseTitle: document.title || "在线客服"
     };
 
@@ -17,7 +19,7 @@
         end: "/plugin/LiveChat/console/end"
     };
 
-    const getCsrfToken = () => document.querySelector('meta[name="csrf-token"]')?.content || "";
+    const getCsrfToken = () => document.querySelector('meta[name="livechat-csrf-token"]')?.content || "";
 
     const parseJsonResponse = async response => {
         const contentType = response.headers.get("content-type") || "";
@@ -59,6 +61,14 @@
     const replyText = document.querySelector(".lc-reply textarea");
     const replyButton = document.querySelector(".lc-reply button");
     const endButton = document.querySelector(".lc-end-session");
+    const noticeEl = document.querySelector(".lc-console-notice");
+
+    const showNotice = message => {
+        window.clearTimeout(state.noticeTimer);
+        noticeEl.textContent = message || "操作失败，请稍后重试";
+        noticeEl.classList.remove("hidden");
+        state.noticeTimer = window.setTimeout(() => noticeEl.classList.add("hidden"), 4500);
+    };
 
     const activeSession = () => state.sessions.find(item => Number(item.id) === Number(state.activeId));
 
@@ -96,7 +106,7 @@
             const hasUnread = unread > 0;
             const active = id === Number(state.activeId);
             return `
-                <div class="lc-session-item ${active ? "active" : ""} ${hasUnread ? "has-unread" : ""}" data-id="${id}">
+                <button class="lc-session-item ${active ? "active" : ""} ${hasUnread ? "has-unread" : ""}" type="button" data-id="${id}" aria-pressed="${active ? "true" : "false"}">
                     <div class="lc-session-row">
                         <div class="lc-session-identity">
                             ${hasUnread ? '<span class="lc-unread-dot" aria-hidden="true"></span>' : ""}
@@ -109,7 +119,7 @@
                         <div class="lc-session-preview">${esc(item.last_message || "暂无消息")}</div>
                     </div>
                     <div class="lc-session-time">${esc(item.status_text)} · ${esc(item.last_msg_at || item.create_time)}</div>
-                </div>
+                </button>
             `;
         }).join("");
         listEl.scrollTop = previousScrollTop;
@@ -150,11 +160,19 @@
 
     const loadSessions = (options = {}) => {
         const background = Boolean(options.background);
-        if (state.loadingSessions) return Promise.resolve();
+        if (state.loadingSessions) {
+            state.pendingSessionReload = true;
+            return Promise.resolve();
+        }
         state.loadingSessions = true;
+        const requestedStatus = state.status;
 
-        return post(api.sessions, {status: state.status}).then(res => {
+        return post(api.sessions, {status: requestedStatus}).then(res => {
             if (res.code !== 200) throw new Error(res.msg || "加载会话失败");
+            if (requestedStatus !== state.status) {
+                state.pendingSessionReload = true;
+                return;
+            }
             state.sessions = res.data.list || [];
             renderSessions();
             if (state.activeId && activeSession()) {
@@ -166,6 +184,10 @@
             }
         }).finally(() => {
             state.loadingSessions = false;
+            if (state.pendingSessionReload) {
+                state.pendingSessionReload = false;
+                loadSessions();
+            }
         });
     };
 
@@ -192,17 +214,22 @@
 
     const reply = () => {
         const content = replyText.value.trim();
-        if (!content || !state.activeId) return;
-        state.messageRequestId += 1;
+        if (!content || !state.activeId || replyButton.disabled) return;
+        const sessionId = Number(state.activeId);
+        const requestId = ++state.messageRequestId;
         replyButton.disabled = true;
-        post(api.reply, {session_id: state.activeId, content}).then(res => {
+        post(api.reply, {session_id: sessionId, content}).then(res => {
+            if (requestId !== state.messageRequestId || sessionId !== Number(state.activeId)) return;
             if (res.code !== 200) throw new Error(res.msg || "回复失败");
             replyText.value = "";
             renderMessages(res.data.session, res.data.messages, {forceScroll: true});
             loadSessions();
         }).catch(error => {
-            alert(error.message || "回复失败");
+            if (requestId === state.messageRequestId && sessionId === Number(state.activeId)) {
+                showNotice(error.message || "回复失败");
+            }
         }).finally(() => {
+            if (requestId !== state.messageRequestId || sessionId !== Number(state.activeId)) return;
             const session = activeSession();
             replyButton.disabled = session ? Number(session.status) === 1 : false;
             if (!replyText.disabled) replyText.focus();
@@ -210,15 +237,24 @@
     };
 
     const endSession = () => {
-        if (!state.activeId) return;
+        if (!state.activeId || endButton.disabled) return;
         if (!window.confirm("确定结束该会话吗？历史消息会保留。")) return;
-        state.messageRequestId += 1;
-        post(api.end, {session_id: state.activeId}).then(res => {
+        const sessionId = Number(state.activeId);
+        const requestId = ++state.messageRequestId;
+        endButton.disabled = true;
+        post(api.end, {session_id: sessionId}).then(res => {
+            if (requestId !== state.messageRequestId || sessionId !== Number(state.activeId)) return;
             if (res.code !== 200) throw new Error(res.msg || "结束失败");
             renderMessages(res.data.session, res.data.messages, {forceScroll: true});
             loadSessions();
         }).catch(error => {
-            alert(error.message || "结束失败");
+            if (requestId === state.messageRequestId && sessionId === Number(state.activeId)) {
+                showNotice(error.message || "结束失败");
+            }
+        }).finally(() => {
+            if (requestId !== state.messageRequestId || sessionId !== Number(state.activeId)) return;
+            const session = activeSession();
+            endButton.disabled = session ? Number(session.status) === 1 : false;
         });
     };
 
@@ -235,7 +271,9 @@
             button.classList.add("active");
             state.status = button.dataset.status;
             state.activeId = 0;
+            state.messageRequestId += 1;
             state.activeMessageSignature = "";
+            listEl.scrollTop = 0;
             activeEl.classList.add("hidden");
             emptyEl.classList.remove("hidden");
             loadSessions();
