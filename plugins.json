@@ -4,6 +4,21 @@
   "notice": "本仓库为 Acg-Faka-Local 的 GitHub 插件市场，前端会读取本 JSON 渲染插件列表，安装时根据 path 字段从仓库子目录拉取文件。type: 0=通用插件 1=支付插件 2=主题模板。",
   "items": [
     {
+      "key": "ShineBanner",
+      "type": 0,
+      "name": "流光Banner",
+      "version": "1.0.0",
+      "author": "曼波",
+      "description": "为首页添加可配置轮播 Banner轮播图。启用后在 后台设置 → Banner管理 中添加图片。",
+      "web_site": "",
+      "icon": "",
+      "path": "plugins/ShineBanner",
+      "tags": [],
+      "min_app_version": "3.4.9",
+      "homepage": "https://github.com/mbwso/Acg-Faka-Plugins/tree/main/plugins/ShineBanner",
+      "download_url": null
+    },
+    {
       "key": "ApiNotification",
       "type": 0,
       "name": "API通知",
