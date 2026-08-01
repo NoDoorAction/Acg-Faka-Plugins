@@ -799,7 +799,7 @@
       "download_url": null
     },
     {
-      "key": "ShinerBanner",
+      "key": "ShineBanner",
       "type": 0,
       "name": "流光Banner",
       "version": "1.0.0",
@@ -810,7 +810,7 @@
       "path": "plugins/ShineBanner",
       "tags": [],
       "min_app_version": "3.4.9",
-      "homepage": "https://github.com/NoDoorAction/Acg-Faka-Plugins/tree/main/plugins/ShinerBanner",
+      "homepage": "https://github.com/NoDoorAction/Acg-Faka-Plugins/tree/main/plugins/ShineBanner",
       "download_url": null
     }
   ]
