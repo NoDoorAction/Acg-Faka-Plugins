@@ -15,6 +15,10 @@ class Admin extends ManagePlugin
 {
     public function index(): string
     {
+        // ManagePlugin renders plugin templates but does not load the admin
+        // template helpers used by Header.html (for example admin_var()).
+        require_once BASE_PATH . '/app/View/Admin/Helper.php';
+
         $config  = Plugin::getConfig("ShineBanner");
         $banners = json_decode($config['banners'] ?? '[]', true) ?: [];
 
