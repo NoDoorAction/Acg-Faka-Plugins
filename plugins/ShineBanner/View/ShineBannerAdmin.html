@@ -1,0 +1,232 @@
+#{include file="Admin/Header.html"}
+<!--begin::Content-->
+<div class="content d-flex flex-column flex-column-fluid" id="kt_content">
+    <!--begin::Toolbar-->
+    #{include file="Admin/Toolbar.html"}
+    <!--end::Toolbar-->
+    <!--begin::Post-->
+    <div class="post d-flex flex-column-fluid" id="kt_post">
+        <div id="kt_content_container" class="container-xxl">
+
+            <!-- 轮播设置 -->
+            <div class="card mb-5">
+                <div class="card-header border-0 cursor-pointer">
+                    <div class="card-title m-0">
+                        <h3 class="fw-bolder m-0">轮播设置</h3>
+                    </div>
+                </div>
+                <div class="collapse show">
+                    <div class="card-body border-top p-9">
+                        <div class="row mb-6">
+                            <label class="col-lg-4 col-form-label fw-bold fs-6">切换间隔（毫秒）</label>
+                            <div class="col-lg-8 fv-row">
+                                <input type="number" id="inputInterval" class="form-control form-control-lg form-control-solid" value="#{$interval}" min="500" step="500" placeholder="4000">
+                            </div>
+                        </div>
+                        <div class="row mb-6">
+                            <label class="col-lg-4 col-form-label fw-bold fs-6">Banner 高度（像素）</label>
+                            <div class="col-lg-8 fv-row">
+                                <input type="number" id="inputHeight" class="form-control form-control-lg form-control-solid" value="#{$height}" min="100" step="10" placeholder="360">
+                                <div class="form-text">移动端自动缩小为约 55%</div>
+                            </div>
+                        </div>
+                        <div class="row mb-6">
+                            <label class="col-lg-4 col-form-label fw-bold fs-6">Banner 最大宽度（像素）</label>
+                            <div class="col-lg-8 fv-row">
+                                <input type="number" id="inputWidth" class="form-control form-control-lg form-control-solid" value="#{$width}" min="200" step="10" placeholder="1680">
+                                <div class="form-text">部分主题内容区较窄时可调小，避免 Banner 显得过长</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 添加 Banner -->
+            <div class="card mb-5">
+                <div class="card-header border-0 cursor-pointer">
+                    <div class="card-title m-0">
+                        <h3 class="fw-bolder m-0">添加 Banner</h3>
+                    </div>
+                </div>
+                <div class="collapse show">
+                    <div class="card-body border-top p-9">
+                        <div class="row g-4 align-items-end">
+                            <div class="col-md-5">
+                                <label class="form-label fw-bold fs-6 required">图片地址</label>
+                                <input type="url" id="addImage" class="form-control form-control-lg form-control-solid" placeholder="https://example.com/banner.jpg">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold fs-6">跳转链接（留空则不跳转）</label>
+                                <input type="url" id="addLink" class="form-control form-control-lg form-control-solid" placeholder="https://example.com">
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label fw-bold fs-6">打开方式</label>
+                                <select id="addTarget" class="form-select form-select-solid form-select-lg">
+                                    <option value="_self">当前页</option>
+                                    <option value="_blank">新标签</option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <label class="form-label fw-bold fs-6">排序</label>
+                                <input type="number" id="addSort" class="form-control form-control-lg form-control-solid" value="0" min="0">
+                            </div>
+                            <div class="col-md-1">
+                                <button class="btn btn-primary w-100" onclick="addBanner()">
+                                    <i class="fa fa-plus"></i> 添加
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Banner 列表 -->
+            <div class="card mb-5">
+                <div class="card-header border-0 cursor-pointer">
+                    <div class="card-title m-0">
+                        <h3 class="fw-bolder m-0">Banner 列表</h3>
+                    </div>
+                </div>
+                <div class="collapse show">
+                    <div class="card-body border-top p-0">
+                        <div class="table-responsive">
+                            <table class="table table-flush align-middle table-row-bordered table-row-solid gy-4 gs-9" id="bannerTable">
+                                <thead class="border-gray-200 fs-5 fw-bold bg-lighten">
+                                    <tr>
+                                        <th class="ps-9" style="width:110px;">预览</th>
+                                        <th>图片地址</th>
+                                        <th>链接</th>
+                                        <th style="width:100px;">打开方式</th>
+                                        <th style="width:80px;">排序</th>
+                                        <th style="width:90px;">状态</th>
+                                        <th style="width:90px;">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="bannerTbody"></tbody>
+                            </table>
+                        </div>
+                        <div id="emptyTip" class="text-center py-10 text-muted fs-6" style="display:none;">
+                            <i class="fa fa-image fa-2x d-block mb-3 text-muted"></i>
+                            暂无 Banner，在上方添加第一张图片
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按钮 -->
+            <div class="d-flex justify-content-end gap-3 mb-10">
+                <button class="btn btn-light-secondary" onclick="location.reload()">
+                    <i class="fa fa-rotate-right"></i> 重置
+                </button>
+                <button class="btn btn-primary" id="btnSave" onclick="saveAll()">
+                    <i class="fa fa-floppy-disk"></i> 保存所有设置
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+var _banners = JSON.parse(atob('#{$banners_b64}'));
+
+function esc(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderTable() {
+    var tbody = document.getElementById('bannerTbody');
+    var empty = document.getElementById('emptyTip');
+    if (!_banners.length) {
+        tbody.innerHTML = '';
+        empty.style.display = '';
+        return;
+    }
+    empty.style.display = 'none';
+    var html = '';
+    _banners.forEach(function(b, i) {
+        html += '<tr>' +
+            '<td class="ps-9">' + (b.image ? '<img src="' + esc(b.image) + '" style="width:96px;height:54px;object-fit:cover;border-radius:6px;" onerror="this.style.display=\'none\'">' : '<span class="text-muted">无图</span>') + '</td>' +
+            '<td><input type="url" class="form-control form-control-sm form-control-solid" value="' + esc(b.image) + '" onchange="_banners[' + i + '].image=this.value;refreshPreview(this,' + i + ');" style="font-size:13px;"></td>' +
+            '<td><input type="url" class="form-control form-control-sm form-control-solid" value="' + esc(b.link||'') + '" onchange="_banners[' + i + '].link=this.value;" style="font-size:13px;" placeholder="留空不跳转"></td>' +
+            '<td><select class="form-select form-select-sm form-select-solid" onchange="_banners[' + i + '].target=this.value;" style="font-size:13px;">' +
+                '<option value="_self"' + (b.target==='_self'?' selected':'') + '>当前页</option>' +
+                '<option value="_blank"' + (b.target==='_blank'?' selected':'') + '>新标签</option>' +
+            '</select></td>' +
+            '<td><input type="number" class="form-control form-control-sm form-control-solid" value="' + (b.sort||0) + '" onchange="_banners[' + i + '].sort=parseInt(this.value)||0;" style="width:60px;font-size:13px;" min="0"></td>' +
+            '<td>' +
+                '<span class="badge cursor-pointer ' + (b.status===0?'badge-light-warning':'badge-light-success') + '" onclick="toggleStatus(' + i + ')" id="statusBadge' + i + '">' +
+                (b.status===0?'隐藏':'显示') + '</span>' +
+            '</td>' +
+            '<td><a href="javascript:;" class="btn btn-sm btn-light-danger" onclick="deleteBanner(' + i + ')"><i class="fa fa-trash"></i></a></td>' +
+        '</tr>';
+    });
+    tbody.innerHTML = html;
+}
+
+function refreshPreview(input, i) {
+    var img = input.closest('tr').querySelector('img');
+    if (img) img.src = input.value;
+}
+
+function addBanner() {
+    var img = document.getElementById('addImage').value.trim();
+    if (!img) { toastr.warning('请填写图片地址'); return; }
+    _banners.push({
+        image:  img,
+        link:   document.getElementById('addLink').value.trim(),
+        target: document.getElementById('addTarget').value,
+        sort:   parseInt(document.getElementById('addSort').value) || 0,
+        status: 1,
+    });
+    document.getElementById('addImage').value = '';
+    document.getElementById('addLink').value  = '';
+    document.getElementById('addSort').value  = '0';
+    renderTable();
+}
+
+function deleteBanner(i) {
+    _banners.splice(i, 1);
+    renderTable();
+}
+
+function toggleStatus(i) {
+    _banners[i].status = _banners[i].status === 0 ? 1 : 0;
+    var badge = document.getElementById('statusBadge' + i);
+    badge.className = 'badge cursor-pointer ' + (_banners[i].status === 0 ? 'badge-light-warning' : 'badge-light-success');
+    badge.textContent = _banners[i].status === 0 ? '隐藏' : '显示';
+}
+
+function saveAll() {
+    var btn = document.getElementById('btnSave');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 保存中...';
+
+    var fd = new FormData();
+    fd.append('banners',  JSON.stringify(_banners));
+    fd.append('interval', parseInt(document.getElementById('inputInterval').value) || 4000);
+    fd.append('height',   parseInt(document.getElementById('inputHeight').value) || 360);
+    fd.append('width',    parseInt(document.getElementById('inputWidth').value) || 1680);
+
+    fetch('/plugin/ShineBanner/Api/save', { method: 'POST', body: fd })
+        .then(function(r){ return r.json(); })
+        .then(function(res){
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-floppy-disk"></i> 保存所有设置';
+            if (res.code === 200) {
+                toastr.success(res.msg || '保存成功');
+            } else {
+                toastr.error(res.msg || '保存失败');
+            }
+        })
+        .catch(function(){
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa fa-floppy-disk"></i> 保存所有设置';
+            toastr.error('请求失败，请检查网络');
+        });
+}
+
+renderTable();
+</script>
+
+#{include file="Admin/Footer.html"}

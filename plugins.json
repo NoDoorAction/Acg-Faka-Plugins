@@ -797,6 +797,21 @@
       "min_app_version": "3.4.9",
       "homepage": "https://github.com/NoDoorAction/Acg-Faka-Plugins/tree/main/themes/MountFuji",
       "download_url": null
+    },
+    {
+      "key": "ShineBanner",
+      "type": 0,
+      "name": "流光Banner",
+      "version": "1.0.0",
+      "author": "曼波",
+      "description": "为首页添加可配置轮播 Banner。启用后在 后台设置 → Banner管理 中添加图片",
+      "web_site": "",
+      "icon": "",
+      "path": "plugins/ShineBanner",
+      "tags": [],
+      "min_app_version": "3.4.9",
+      "homepage": "https://github.com/NoDoorAction/Acg-Faka-Plugins/tree/main/plugins/ShineBanner",
+      "download_url": null
     }
   ]
 }
